@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>房東管理系統 - 登入/註冊</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+	<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+</head>
+<body class="bg-slate-100 flex items-center justify-center h-screen">
+
+    <div class="bg-white p-8 rounded-xl shadow-lg w-full max-w-md">
+        <h1 class="text-2xl font-bold text-center text-slate-800 mb-6">房東雲端主控台</h1>
+        
+        <div class="flex border-b border-gray-200 mb-6">
+            <button id="tab-login" onclick="switchTab('login')" class="w-1/2 py-2 text-center font-semibold border-b-2 border-blue-500 text-blue-600 focus:outline-none">帳戶登入</button>
+            <button id="tab-register" onclick="switchTab('register')" class="w-1/2 py-2 text-center font-semibold text-gray-500 hover:text-blue-500 focus:outline-none">新帳戶註冊</button>
+        </div>
+
+        <div id="error-msg" class="hidden mb-4 p-3 bg-red-100 text-red-700 text-sm rounded"></div>
+
+        <form id="form-login" onsubmit="handleAuth(event, 'login')" class="space-y-4">
+            <div>
+                <label class="block text-sm font-medium text-gray-700">帳戶名稱</label>
+                <input type="text" id="login-user" required class="mt-1 w-full p-2 border rounded-md focus:ring-2 focus:ring-blue-400 focus:outline-none">
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700">密碼</label>
+                <input type="password" id="login-pass" required class="mt-1 w-full p-2 border rounded-md focus:ring-2 focus:ring-blue-400 focus:outline-none">
+            </div>
+            <button type="submit" class="w-full bg-blue-600 text-white py-2 rounded-md font-semibold hover:bg-blue-700 transition">進入系統</button>
+        </form>
+
+        <form id="form-register" onsubmit="handleAuth(event, 'register')" class="space-y-4 hidden">
+            <div>
+                <label class="block text-sm font-medium text-gray-700">帳戶名稱</label>
+                <input type="text" id="reg-user" class="mt-1 w-full p-2 border rounded-md focus:ring-2 focus:ring-blue-400 focus:outline-none">
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700">密碼</label>
+                <input type="password" id="reg-pass" class="mt-1 w-full p-2 border rounded-md focus:ring-2 focus:ring-blue-400 focus:outline-none">
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700">確認密碼</label>
+                <input type="password" id="reg-pass-confirm" class="mt-1 w-full p-2 border rounded-md focus:ring-2 focus:ring-blue-400 focus:outline-none">
+            </div>
+            <button type="submit" class="w-full bg-emerald-600 text-white py-2 rounded-md font-semibold hover:bg-emerald-700 transition">註冊新帳號</button>
+        </form>
+    </div>
+
+    <script>
+        // 檢查是否已登入
+        if(localStorage.getItem('token')) {
+            window.location.href = '/dashboard';
+        }
+
+        function switchTab(type) {
+            const loginTab = document.getElementById('tab-login');
+            const regTab = document.getElementById('tab-register');
+            const loginForm = document.getElementById('form-login');
+            const regForm = document.getElementById('form-register');
+            document.getElementById('error-msg').classList.add('hidden');
+
+            if(type === 'login') {
+                loginTab.className = "w-1/2 py-2 text-center font-semibold border-b-2 border-blue-500 text-blue-600 focus:outline-none";
+                regTab.className = "w-1/2 py-2 text-center font-semibold text-gray-500 hover:text-blue-500 focus:outline-none";
+                loginForm.classList.remove('hidden');
+                regForm.classList.add('hidden');
+            } else {
+                regTab.className = "w-1/2 py-2 text-center font-semibold border-b-2 border-emerald-500 text-emerald-600 focus:outline-none";
+                loginTab.className = "w-1/2 py-2 text-center font-semibold text-gray-500 hover:text-emerald-500 focus:outline-none";
+                regForm.classList.remove('hidden');
+                loginForm.classList.add('hidden');
+            }
+        }
+
+        async function handleAuth(e, type) {
+            e.preventDefault();
+            const errMsg = document.getElementById('error-msg');
+            errMsg.classList.add('hidden');
+
+            let url = '/api/login';
+            let payload = {};
+
+            if (type === 'login') {
+                payload = {
+                    username: document.getElementById('login-user').value,
+                    password: document.getElementById('login-pass').value
+                };
+            } else {
+                const pass = document.getElementById('reg-pass').value;
+                const confirmPass = document.getElementById('reg-pass-confirm').value;
+                if (pass !== confirmPass) {
+                    errMsg.textContent = "兩次密碼輸入不一致！";
+                    errMsg.classList.remove('hidden');
+                    return;
+                }
+                url = '/api/register';
+                payload = {
+                    username: document.getElementById('reg-user').value,
+                    password: pass
+                };
+            }
+
+            try {
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                const data = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(data.message || '發生錯誤');
+                }
+
+                if (type === 'login') {
+                    localStorage.setItem('token', data.token);
+                    localStorage.setItem('username', data.username);
+                    window.location.href = '/dashboard';
+                } else {
+					Swal.fire({
+						icon: 'success',
+						title: '成功',
+						text: '註冊成功，請切換至登入分頁進行登入！'
+					});
+                    switchTab('login');
+                }
+            } catch (err) {
+                errMsg.textContent = err.message;
+                errMsg.classList.remove('hidden');
+            }
+        }
+    </script>
+</body>
+</html>
